@@ -1,12 +1,20 @@
 from collections import deque
 import heapq
-
+import math
+from operator import pos
+from tracemalloc import start 
 
 class SearchAgent:
 
     def __init__(self):
         self.plan = []
         self.active_algo = 'BFS'
+
+    def manhattan_distance(self, pos, goal):
+        return abs(pos[0] - goal[0]) + abs(pos[1] - goal[1])
+
+    def euclidean_distance(self, pos, goal):
+        return math.sqrt((pos[0] - goal[0])**2 + (pos[1] - goal[1])**2)       
 
     def get_neighbors(self, position, grid_size, walls):
         x, y = position
@@ -131,6 +139,49 @@ class SearchAgent:
 
         return []
 
+    def astar_search(self, start, goal, grid_size, walls, heuristic_type='manhattan'):
+
+        frontier = []
+        reached = {}
+
+        # Choose heuristic
+        if heuristic_type == 'manhattan':
+            h = self.manhattan_distance(start, goal)
+        else:
+            h = self.euclidean_distance(start, goal)
+
+        # (f, g, position, path)
+        heapq.heappush(frontier, (h, 0, start, []))
+        reached[start] = 0
+
+        while frontier:
+
+            f_cost, g_cost, current, path = heapq.heappop(frontier)
+
+            if current == goal:
+                return path
+
+            for next_position, action in self.get_neighbors(current, grid_size, walls):
+
+                new_g = g_cost + 1
+
+                if next_position not in reached or new_g < reached[next_position]:
+
+                    reached[next_position] = new_g
+
+                    # calculate heuristic
+                    if heuristic_type == 'manhattan':
+                        h = self.manhattan_distance(next_position, goal)
+                    else:
+                        h = self.euclidean_distance(next_position, goal)
+
+                    new_f = new_g + h
+                    new_path = path + [action]
+
+                    heapq.heappush(frontier, (new_f, new_g, next_position, new_path))
+
+        return []
+
     def sense_and_act(self, percept):
 
         if not self.plan:
@@ -181,6 +232,16 @@ class SearchAgent:
                     grid_size,
                     walls
                 )
+
+            elif self.active_algo == 'AStar':
+
+                self.plan = self.astar_search(
+                    current_position,
+                    target_food,
+                    grid_size,
+                    walls,
+                    heuristic_type='manhattan'   # you can switch later
+            )
 
         if self.plan:
             return self.plan.pop(0)
